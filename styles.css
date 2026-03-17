@@ -1,6 +1,5 @@
 .simpleButton
 {
-    transform: scale(0.9);
     background-color: rgb(50, 50, 50);
     color: white;
     font-style: normal;
@@ -11,7 +10,6 @@
 
 .simpleButton:hover
 {
-    scale: 0.1;
     background-color: white;
     color: black;
 }

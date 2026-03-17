@@ -1,150 +1,413 @@
-<style>
-    #gameWindow
-    {
-        height: 60vh;
-        width: 60vh;
-        padding: 5vh;
-        border-radius: 5%;
-        /*background-color: red;*/
-        display: grid;       
-        grid-template-columns: repeat(9, 1fr);
-    }
-
-    .cell
-    {
-        height: calc(60vh/9);
-        width: calc(60vh/9);
-        background-color: gray;
-        font-size:xx-large;
-    }
-
-    .cellGiven
-    {
-        color: blue;
-    }
-
-    .border-right  { border-right:  3px solid black; }
-    .border-bottom { border-bottom: 3px solid black; }
-    .cell:hover
-    {
-        background-color: rgb(96, 96, 96);
-    }
-
-    .buttonSelected
-    {
-        background-color: rgb(33, 33, 33);
-        color: rgb(200,200,200);
-    }
-
-    .button
-    {
-        height: calc(60vh/9);
-        width: calc(60vh/9); 
-        font-size:xx-large;
-    }
-</style>
-
-
-
+<!DOCTYPE html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sudoku</title>
     <link rel="stylesheet" href="../styles.css">
+    <style>
+        #gameWindow 
+        {
+            height: 60vh;
+            width: 60vh;
+            padding: 5vh;
+            border-radius: 5%;
+            display: grid;
+            grid-template-columns: repeat(9, 1fr);
+        }
+        .cell             { height: calc(60vh / 9); width: calc(60vh / 9); background-color: gray; font-size: xx-large; }
+        .cell:hover       { background-color: rgb(96, 96, 96); }
+        .cellGiven        { color: rgb(0, 88, 251); pointer-events: none; }
+        .cellConflict     { background-color: rgb(200, 60, 60) !important; }
+        .cellHighlight    { background-color: rgb(220, 200, 50) !important; }
+        .button           { height: calc(60vh / 9); width: calc(60vh / 9); font-size: xx-large; }
+        .buttonSelected   { background-color: rgb(33, 33, 33); color: rgb(200, 200, 200); }
+        .buttonClear      { color: rgb(200, 60, 60); }
+        .buttonClearSelected { background-color: rgb(33, 33, 33); color: rgb(200, 60, 60); }
+        .border-right     { border-right: 3px solid black; }
+        .border-bottom    { border-bottom: 3px solid black; }
+
+        #timer { font-size: x-large; margin: 10px; }
+
+        #completionOverlay 
+        {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.75);
+            z-index: 100;
+            justify-content: center;
+            align-items: center;
+        }
+        #completionOverlay.visible { display: flex; }
+        #completionBox              { background: white; padding: 40px 60px; border-radius: 12px; text-align: center; }
+        #completionBox h1           { margin-bottom: 10px; }
+        #completionBox p            { font-size: large; margin-bottom: 20px; }
+        #completionBox button       { font-size: large; padding: 10px 30px; cursor: pointer; }
+    </style>
 </head>
 <body>
     <center>
-            <a class="simpleButton" href="../index.html">go back</a>
-            <br><br><br><br><br>
-            <div id="gameWindow">
-            
-            </div>
-            <button class="button" id="buttonSelection1" onclick="selectNumber(1)">1</button>
-            <button class="button" id="buttonSelection2" onclick="selectNumber(2)">2</button>
-            <button class="button" id="buttonSelection3" onclick="selectNumber(3)">3</button>
-            <button class="button" id="buttonSelection4" onclick="selectNumber(4)">4</button>
-            <button class="button" id="buttonSelection5" onclick="selectNumber(5)">5</button>
-            <button class="button" id="buttonSelection6" onclick="selectNumber(6)">6</button>
-            <button class="button" id="buttonSelection7" onclick="selectNumber(7)">7</button>
-            <button class="button" id="buttonSelection8" onclick="selectNumber(8)">8</button>
-            <button class="button" id="buttonSelection9" onclick="selectNumber(9)">9</button>
+        <a class="simpleButton" href="../index.html">go back</a>
+        <br><br><br><br><br>
+        <div id="timer">00:00</div>
+        <div id="gameWindow"></div>
+        <button class="button" id="buttonSelection1" onclick="SelectNumber(1)">1</button>
+        <button class="button" id="buttonSelection2" onclick="SelectNumber(2)">2</button>
+        <button class="button" id="buttonSelection3" onclick="SelectNumber(3)">3</button>
+        <button class="button" id="buttonSelection4" onclick="SelectNumber(4)">4</button>
+        <button class="button" id="buttonSelection5" onclick="SelectNumber(5)">5</button>
+        <button class="button" id="buttonSelection6" onclick="SelectNumber(6)">6</button>
+        <button class="button" id="buttonSelection7" onclick="SelectNumber(7)">7</button>
+        <button class="button" id="buttonSelection8" onclick="SelectNumber(8)">8</button>
+        <button class="button" id="buttonSelection9" onclick="SelectNumber(9)">9</button>
+        <button class="button buttonClear" id="buttonClear" onclick="SelectClear()">✕</button>
     </center>
-</body>
 
+    <div id="completionOverlay">
+        <div id="completionBox">
+            <h1>Puzzle Complete!</h1>
+            <p id="completionTime"></p>
+            <button onclick="RestartGame()">Play Again</button>
+        </div>
+    </div>
 
+    <script>
+        let selectedNumber = -1;
+        let cells = [];
+        let startTime = null;
+        let timerInterval = null;
+        let conflictCells = new Set();
+        let sameNumberHighlights = new Set();
 
-<script>
-    var selectedNumber = -1;
-    var cells = [];
-    var puzzle = [
-        [5, 3, 0, 0, 7, 0, 0, 0, 0],
-        [6, 0, 0, 1, 9, 5, 0, 0, 0],
-        [0, 9, 8, 0, 0, 0, 0, 6, 0],
-        [8, 0, 0, 0, 6, 0, 0, 0, 3],
-        [4, 0, 0, 8, 0, 3, 0, 0, 1],
-        [7, 0, 0, 0, 2, 0, 0, 0, 6],
-        [0, 6, 0, 0, 0, 0, 2, 8, 0],
-        [0, 0, 0, 4, 1, 9, 0, 0, 5],
-        [0, 0, 0, 0, 8, 0, 0, 7, 9]
-    ]
+        CreateCells();
 
-    createCells();
+        function CreateCells() 
+        {
+            let gameWindow = document.getElementById("gameWindow");
+            gameWindow.innerHTML = "";
+            cells = [];
 
-    function createCells() 
-    {
-        var gameWindow = document.getElementById("gameWindow");
-        gameWindow.innerHTML = "";
-        cells = [];
+            let puzzle = GeneratePuzzle();
 
-        for (var row = 0; row < 9; row++) {
-            cells[row] = [];
-            for (var col = 0; col < 9; col++) {
-                var i = row * 9 + col;
-                var given = puzzle[row][col] !== 0;
+            for (let row = 0; row < 9; row++) 
+            {
+                cells[row] = [];
 
-                var extra = "";
-                if (col === 2 || col === 5) extra += " border-right";
-                if (row === 2 || row === 5) extra += " border-bottom";
-                if (given) extra += " cellGiven";
-
-                var btn = document.createElement("button");
-                btn.id = "cell" + i;
-                btn.className = "cell" + extra;
-                btn.innerHTML = given ? puzzle[row][col] : "";
-
-                if (!given) 
+                for (let col = 0; col < 9; col++) 
                 {
-                    btn.onclick = (function(r, c) 
-                    {
-                        return function() { clickCell(r, c); };
-                    })(row, col);
-                }
+                    let given = puzzle[row][col] !== 0;
+                    let btn = document.createElement("button");
 
-                gameWindow.appendChild(btn);
-                cells[row][col] = btn;
+                    btn.id = "cell" + (row * 9 + col);
+                    btn.innerHTML = given ? puzzle[row][col] : "";
+
+                    let classes = "cell";
+
+                    if (col === 2 || col === 5) classes += " border-right";
+                    if (row === 2 || row === 5) classes += " border-bottom";
+                    if (given) classes += " cellGiven";
+
+                    btn.className = classes;
+
+                    if (!given) 
+                    {
+                        btn.addEventListener("click", (function(r, c) 
+                        {
+                            return function() { ClickCell(r, c); };
+                        })(row, col));
+                    }
+
+                    gameWindow.appendChild(btn);
+                    cells[row][col] = btn;
+                }
+            }
+
+            StartTimer();
+        }
+
+        function ClickCell(row, col) 
+        {
+            sameNumberHighlights.clear();
+
+            if (selectedNumber === -1) 
+            {
+                let value = GetCellValue(row, col);
+                if (value > 0) HighlightSameNumbers(value);
+                ApplyVisualState();
+                return;
+            }
+
+            if (selectedNumber === 0) 
+            {
+                cells[row][col].innerHTML = "";
+            } 
+            else 
+            {
+                cells[row][col].innerHTML = selectedNumber;
+            }
+
+            UpdateConflicts();
+            ApplyVisualState();
+            CheckCompletion();
+        }
+
+        function GetCellValue(row, col) 
+        {
+            let text = cells[row][col].innerHTML;
+            return text === "" ? 0 : parseInt(text);
+        }
+
+        function HighlightSameNumbers(value) 
+        {
+            for (let row = 0; row < 9; row++) 
+            {
+                for (let col = 0; col < 9; col++) 
+                {
+                    if (GetCellValue(row, col) === value) 
+                    {
+                        sameNumberHighlights.add(row + "," + col);
+                    }
+                }
             }
         }
-    }
 
-    function clickCell(row, col) 
-    {
-        if (selectedNumber < 1 || selectedNumber > 9) {
-            cells[row][col].innerHTML = "";
-            return;
+        function UpdateConflicts() 
+        {
+            conflictCells.clear();
+
+            for (let i = 0; i < 9; i++) 
+            {
+                FindLineConflicts(i, true);
+                FindLineConflicts(i, false);
+            }
         }
-        cells[row][col].innerHTML = selectedNumber;
-    }
 
-    function selectNumber(number) 
-    {
-        var buttonId = "buttonSelection" + number;
-        if (selectedNumber == number) {
+        function FindLineConflicts(index, isRow) 
+        {
+            let positions = {};
+
+            for (let i = 0; i < 9; i++) 
+            {
+                let row = isRow ? index : i;
+                let col = isRow ? i : index;
+                let val = GetCellValue(row, col);
+
+                if (val > 0) 
+                {
+                    if (!positions[val]) positions[val] = [];
+                    positions[val].push(i);
+                }
+            }
+
+            for (let num in positions) 
+            {
+                if (positions[num].length < 2) continue;
+
+                let min = Math.min(...positions[num]);
+                let max = Math.max(...positions[num]);
+
+                for (let i = min; i <= max; i++) 
+                {
+                    let row = isRow ? index : i;
+                    let col = isRow ? i : index;
+                    conflictCells.add(row + "," + col);
+                }
+            }
+        }
+
+        function ApplyVisualState() 
+        {
+            for (let row = 0; row < 9; row++) 
+            {
+                for (let col = 0; col < 9; col++) 
+                {
+                    let key = row + "," + col;
+                    cells[row][col].classList.remove("cellConflict", "cellHighlight");
+
+                    if (conflictCells.has(key)) 
+                    {
+                        cells[row][col].classList.add("cellConflict");
+                    } 
+                    else if (sameNumberHighlights.has(key)) 
+                    {
+                        cells[row][col].classList.add("cellHighlight");
+                    }
+                }
+            }
+        }
+
+        function CheckCompletion() {
+            for (let row = 0; row < 9; row++) 
+            {
+                for (let col = 0; col < 9; col++) 
+                {
+                    if (GetCellValue(row, col) === 0) return;
+                    if (conflictCells.has(row + "," + col)) return;
+                }
+            }
+
+            clearInterval(timerInterval);
+            let elapsed = Math.floor((Date.now() - startTime) / 1000);
+            ShowCompletionScreen(elapsed);
+        }
+
+        function ShowCompletionScreen(totalSeconds) 
+        {
+            let minutes = Math.floor(totalSeconds / 60).toString().padStart(2, "0");
+            let seconds = (totalSeconds % 60).toString().padStart(2, "0");
+            document.getElementById("completionTime").textContent = "Completed in " + minutes + ":" + seconds;
+            document.getElementById("completionOverlay").classList.add("visible");
+        }
+
+        function StartTimer() 
+        {
+            if (timerInterval) clearInterval(timerInterval);
+            startTime = Date.now();
+            UpdateTimerDisplay();
+            timerInterval = setInterval(UpdateTimerDisplay, 1000);
+        }
+
+        function UpdateTimerDisplay() 
+        {
+            let elapsed = Math.floor((Date.now() - startTime) / 1000);
+            let minutes = Math.floor(elapsed / 60).toString().padStart(2, "0");
+            let seconds = (elapsed % 60).toString().padStart(2, "0");
+            document.getElementById("timer").textContent = minutes + ":" + seconds;
+        }
+
+        function SelectNumber(number) 
+        {
+            sameNumberHighlights.clear();
+            ApplyVisualState();
+
+            let buttonId = "buttonSelection" + number;
+
+            if (selectedNumber === number) 
+            {
+                selectedNumber = -1;
+                document.getElementById(buttonId).className = "button";
+                return;
+            }
+
+            selectedNumber = number;
+
+            for (let i = 1; i <= 9; i++) 
+            {
+                document.getElementById("buttonSelection" + i).className = "button";
+            }
+
+            document.getElementById("buttonClear").className = "button buttonClear";
+            document.getElementById(buttonId).className = "button buttonSelected";
+        }
+
+        function SelectClear() 
+        {
+            sameNumberHighlights.clear();
+            ApplyVisualState();
+
+            if (selectedNumber === 0) 
+            {
+                selectedNumber = -1;
+                document.getElementById("buttonClear").className = "button buttonClear";
+                return;
+            }
+
+            selectedNumber = 0;
+
+            for (let i = 1; i <= 9; i++) 
+            {
+                document.getElementById("buttonSelection" + i).className = "button";
+            }
+
+            document.getElementById("buttonClear").className = "button buttonClearSelected";
+        }
+
+        function RestartGame() 
+        {
+            document.getElementById("completionOverlay").classList.remove("visible");
+
             selectedNumber = -1;
-            document.getElementById(buttonId).className = "button";
-            return;
+            conflictCells.clear();
+            sameNumberHighlights.clear();
+
+            for (let i = 1; i <= 9; i++) 
+            {
+                document.getElementById("buttonSelection" + i).className = "button";
+            }
+
+            document.getElementById("buttonClear").className = "button buttonClear";
+
+            CreateCells();
         }
 
-        selectedNumber = number;
-        for (var i = 1; i <= 9; i++) {
-            document.getElementById("buttonSelection" + i).className = "button";
+        function GeneratePuzzle() 
+        {
+            let board = Array.from({ length: 9 }, () => Array(9).fill(0));
+            SolveBoard(board);
+
+            let puzzle = board.map(row => [...row]);
+
+            Shuffle([...Array(81).keys()])
+                .slice(0, 45)
+                .forEach(pos => { puzzle[Math.floor(pos / 9)][pos % 9] = 0; });
+
+            return puzzle;
         }
-        document.getElementById(buttonId).className = "button buttonSelected";
-    }
-</script>
+
+        function SolveBoard(board) 
+        {
+            for (let row = 0; row < 9; row++) 
+            {
+                for (let col = 0; col < 9; col++) 
+                {
+                    if (board[row][col] !== 0) continue;
+
+                    for (let num of Shuffle([1, 2, 3, 4, 5, 6, 7, 8, 9])) 
+                    {
+                        if (!IsValidPlacement(board, row, col, num)) continue;
+
+                        board[row][col] = num;
+                        if (SolveBoard(board)) return true;
+                        board[row][col] = 0;
+                    }
+
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        function IsValidPlacement(board, row, col, num) 
+        {
+            for (let i = 0; i < 9; i++) 
+            {
+                if (board[row][i] === num || board[i][col] === num) return false;
+            }
+
+            let boxRow = Math.floor(row / 3) * 3;
+            let boxCol = Math.floor(col / 3) * 3;
+
+            for (let r = boxRow; r < boxRow + 3; r++) 
+            {
+                for (let c = boxCol; c < boxCol + 3; c++) 
+                {
+                    if (board[r][c] === num) return false;
+                }
+            }
+
+            return true;
+        }
+
+        function Shuffle(array) 
+        {
+            for (let i = array.length - 1; i > 0; i--) 
+            {
+                let j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+    </script>
+</body>
+</html>
