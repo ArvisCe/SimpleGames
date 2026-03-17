@@ -6,31 +6,72 @@
     <title>Sudoku</title>
     <link rel="stylesheet" href="../styles.css">
     <style>
+        :root {
+            --board-size: min(60vh, 90vw);
+            --cell-size: calc(var(--board-size) / 9);
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            overflow-x: hidden;
+        }
+
         #gameWindow {
-            height: 60vh;
-            width: 60vh;
-            padding: 5vh;
+            height: var(--board-size);
+            width: var(--board-size);
             border-radius: 5%;
+            background-color: red;
             display: grid;
             grid-template-columns: repeat(9, 1fr);
         }
 
-        .cell                { height: calc(60vh / 9); width: calc(60vh / 9); background-color: gray; font-size: xx-large; }
+        .cell                { height: var(--cell-size); width: var(--cell-size); background-color: gray; font-size: calc(var(--cell-size) * 0.5); box-sizing: border-box; }
         .cell:hover          { background-color: rgb(96, 96, 96); }
         .cellGiven           { color: rgb(80, 140, 255); pointer-events: none; }
         .cellHint            { color: rgb(60, 200, 60); pointer-events: none; }
         .cellConflict        { background-color: rgb(200, 60, 60) !important; }
         .cellHighlight       { background-color: rgb(220, 200, 50) !important; }
-        .button              { height: calc(60vh / 9); width: calc(60vh / 9); font-size: xx-large; }
-        .buttonSelected      { background-color: rgb(33, 33, 33); color: rgb(200, 200, 200); }
-        .buttonClear         { color: rgb(200, 60, 60); }
-        .buttonClearSelected { background-color: rgb(33, 33, 33); color: rgb(200, 60, 60); }
         .border-right        { border-right: 3px solid black; }
         .border-bottom       { border-bottom: 3px solid black; }
 
-        #topBar   { display: flex; gap: 10px; justify-content: center; margin-bottom: 10px; }
-        #topBar button { font-size: medium; padding: 8px 20px; cursor: pointer; }
-        #timer    { font-size: x-large; margin: 10px; }
+        #topBar {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 10px;
+        }
+
+        #topBar button {
+            font-size: medium;
+            padding: 8px 20px;
+            cursor: pointer;
+        }
+
+        #timer {
+            font-size: x-large;
+            margin: 10px;
+        }
+
+        #numberBar {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            width: var(--board-size);
+            gap: 0;
+        }
+
+        .button {
+            height: var(--cell-size);
+            width: var(--cell-size);
+            font-size: calc(var(--cell-size) * 0.5);
+            box-sizing: border-box;
+            cursor: pointer;
+        }
+
+        .buttonSelected      { background-color: rgb(33, 33, 33); color: rgb(200, 200, 200); }
+        .buttonClear         { color: rgb(200, 60, 60); }
+        .buttonClearSelected { background-color: rgb(33, 33, 33); color: rgb(200, 60, 60); }
 
         #completionOverlay {
             display: none;
@@ -41,36 +82,46 @@
             justify-content: center;
             align-items: center;
         }
+
         #completionOverlay.visible { display: flex; }
-        #completionBox             { background: white; padding: 40px 60px; border-radius: 12px; text-align: center; }
-        #completionBox h1          { margin-bottom: 10px; }
-        #completionBox p           { font-size: large; margin-bottom: 20px; }
-        #completionBox button      { font-size: large; padding: 10px 30px; cursor: pointer; }
+
+        #completionBox {
+            background: white;
+            padding: 40px 60px;
+            border-radius: 12px;
+            text-align: center;
+        }
+
+        #completionBox h1     { margin-bottom: 10px; }
+        #completionBox p      { font-size: large; margin-bottom: 20px; }
+        #completionBox button { font-size: large; padding: 10px 30px; cursor: pointer; }
     </style>
 </head>
 <body>
     <center>
         <a class="simpleButton" href="../index.html">go back</a>
-        <br><br><br><br><br>
+        <br><br>
 
         <div id="topBar">
-            <button onclick="RevealHint()">💡 Hint</button>
-            <button onclick="RestartGame()">🔄 Restart</button>
+            <button onclick="RevealHint()">Hint</button>
+            <button onclick="RestartGame()">Restart</button>
         </div>
 
         <div id="timer">00:00</div>
         <div id="gameWindow"></div>
 
-        <button class="button" id="buttonSelection1" onclick="SelectNumber(1)">1</button>
-        <button class="button" id="buttonSelection2" onclick="SelectNumber(2)">2</button>
-        <button class="button" id="buttonSelection3" onclick="SelectNumber(3)">3</button>
-        <button class="button" id="buttonSelection4" onclick="SelectNumber(4)">4</button>
-        <button class="button" id="buttonSelection5" onclick="SelectNumber(5)">5</button>
-        <button class="button" id="buttonSelection6" onclick="SelectNumber(6)">6</button>
-        <button class="button" id="buttonSelection7" onclick="SelectNumber(7)">7</button>
-        <button class="button" id="buttonSelection8" onclick="SelectNumber(8)">8</button>
-        <button class="button" id="buttonSelection9" onclick="SelectNumber(9)">9</button>
-        <button class="button buttonClear" id="buttonClear" onclick="SelectClear()">✕</button>
+        <div id="numberBar">
+            <button class="button" id="buttonSelection1" onclick="SelectNumber(1)">1</button>
+            <button class="button" id="buttonSelection2" onclick="SelectNumber(2)">2</button>
+            <button class="button" id="buttonSelection3" onclick="SelectNumber(3)">3</button>
+            <button class="button" id="buttonSelection4" onclick="SelectNumber(4)">4</button>
+            <button class="button" id="buttonSelection5" onclick="SelectNumber(5)">5</button>
+            <button class="button" id="buttonSelection6" onclick="SelectNumber(6)">6</button>
+            <button class="button" id="buttonSelection7" onclick="SelectNumber(7)">7</button>
+            <button class="button" id="buttonSelection8" onclick="SelectNumber(8)">8</button>
+            <button class="button" id="buttonSelection9" onclick="SelectNumber(9)">9</button>
+            <button class="button buttonClear" id="buttonClear" onclick="SelectClear()">✕</button>
+        </div>
     </center>
 
     <div id="completionOverlay">
