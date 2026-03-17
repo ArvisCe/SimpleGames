@@ -6,31 +6,34 @@
     <title>Sudoku</title>
     <link rel="stylesheet" href="../styles.css">
     <style>
-        #gameWindow 
-        {
+        #gameWindow {
             height: 60vh;
             width: 60vh;
             padding: 5vh;
             border-radius: 5%;
+            background-color: red;
             display: grid;
             grid-template-columns: repeat(9, 1fr);
         }
-        .cell             { height: calc(60vh / 9); width: calc(60vh / 9); background-color: gray; font-size: xx-large; }
-        .cell:hover       { background-color: rgb(96, 96, 96); }
-        .cellGiven        { color: rgb(0, 88, 251); pointer-events: none; }
-        .cellConflict     { background-color: rgb(200, 60, 60) !important; }
-        .cellHighlight    { background-color: rgb(220, 200, 50) !important; }
-        .button           { height: calc(60vh / 9); width: calc(60vh / 9); font-size: xx-large; }
-        .buttonSelected   { background-color: rgb(33, 33, 33); color: rgb(200, 200, 200); }
-        .buttonClear      { color: rgb(200, 60, 60); }
+
+        .cell                { height: calc(60vh / 9); width: calc(60vh / 9); background-color: gray; font-size: xx-large; }
+        .cell:hover          { background-color: rgb(96, 96, 96); }
+        .cellGiven           { color: rgb(80, 140, 255); pointer-events: none; }
+        .cellHint            { color: rgb(60, 200, 60); pointer-events: none; }
+        .cellConflict        { background-color: rgb(200, 60, 60) !important; }
+        .cellHighlight       { background-color: rgb(220, 200, 50) !important; }
+        .button              { height: calc(60vh / 9); width: calc(60vh / 9); font-size: xx-large; }
+        .buttonSelected      { background-color: rgb(33, 33, 33); color: rgb(200, 200, 200); }
+        .buttonClear         { color: rgb(200, 60, 60); }
         .buttonClearSelected { background-color: rgb(33, 33, 33); color: rgb(200, 60, 60); }
-        .border-right     { border-right: 3px solid black; }
-        .border-bottom    { border-bottom: 3px solid black; }
+        .border-right        { border-right: 3px solid black; }
+        .border-bottom       { border-bottom: 3px solid black; }
 
-        #timer { font-size: x-large; margin: 10px; }
+        #topBar   { display: flex; gap: 10px; justify-content: center; margin-bottom: 10px; }
+        #topBar button { font-size: medium; padding: 8px 20px; cursor: pointer; }
+        #timer    { font-size: x-large; margin: 10px; }
 
-        #completionOverlay 
-        {
+        #completionOverlay {
             display: none;
             position: fixed;
             inset: 0;
@@ -40,18 +43,25 @@
             align-items: center;
         }
         #completionOverlay.visible { display: flex; }
-        #completionBox              { background: white; padding: 40px 60px; border-radius: 12px; text-align: center; }
-        #completionBox h1           { margin-bottom: 10px; }
-        #completionBox p            { font-size: large; margin-bottom: 20px; }
-        #completionBox button       { font-size: large; padding: 10px 30px; cursor: pointer; }
+        #completionBox             { background: white; padding: 40px 60px; border-radius: 12px; text-align: center; }
+        #completionBox h1          { margin-bottom: 10px; }
+        #completionBox p           { font-size: large; margin-bottom: 20px; }
+        #completionBox button      { font-size: large; padding: 10px 30px; cursor: pointer; }
     </style>
 </head>
 <body>
     <center>
         <a class="simpleButton" href="../index.html">go back</a>
         <br><br><br><br><br>
+
+        <div id="topBar">
+            <button onclick="RevealHint()">💡 Hint</button>
+            <button onclick="RestartGame()">🔄 Restart</button>
+        </div>
+
         <div id="timer">00:00</div>
         <div id="gameWindow"></div>
+
         <button class="button" id="buttonSelection1" onclick="SelectNumber(1)">1</button>
         <button class="button" id="buttonSelection2" onclick="SelectNumber(2)">2</button>
         <button class="button" id="buttonSelection3" onclick="SelectNumber(3)">3</button>
@@ -75,14 +85,14 @@
     <script>
         let selectedNumber = -1;
         let cells = [];
+        let solution = [];
         let startTime = null;
         let timerInterval = null;
         let conflictCells = new Set();
-        let sameNumberHighlights = new Set();
 
         CreateCells();
 
-        function CreateCells() 
+        function CreateCells()
         {
             let gameWindow = document.getElementById("gameWindow");
             gameWindow.innerHTML = "";
@@ -90,11 +100,11 @@
 
             let puzzle = GeneratePuzzle();
 
-            for (let row = 0; row < 9; row++) 
+            for (let row = 0; row < 9; row++)
             {
                 cells[row] = [];
 
-                for (let col = 0; col < 9; col++) 
+                for (let col = 0; col < 9; col++)
                 {
                     let given = puzzle[row][col] !== 0;
                     let btn = document.createElement("button");
@@ -103,16 +113,14 @@
                     btn.innerHTML = given ? puzzle[row][col] : "";
 
                     let classes = "cell";
-
                     if (col === 2 || col === 5) classes += " border-right";
                     if (row === 2 || row === 5) classes += " border-bottom";
                     if (given) classes += " cellGiven";
-
                     btn.className = classes;
 
-                    if (!given) 
+                    if (!given)
                     {
-                        btn.addEventListener("click", (function(r, c) 
+                        btn.addEventListener("click", (function(r, c)
                         {
                             return function() { ClickCell(r, c); };
                         })(row, col));
@@ -126,23 +134,19 @@
             StartTimer();
         }
 
-        function ClickCell(row, col) 
+        function ClickCell(row, col)
         {
-            sameNumberHighlights.clear();
+            if (selectedNumber === -1) return;
 
-            if (selectedNumber === -1) 
-            {
-                let value = GetCellValue(row, col);
-                if (value > 0) HighlightSameNumbers(value);
-                ApplyVisualState();
-                return;
-            }
-
-            if (selectedNumber === 0) 
+            if (selectedNumber === 0)
             {
                 cells[row][col].innerHTML = "";
-            } 
-            else 
+            }
+            else if (GetCellValue(row, col) === selectedNumber)
+            {
+                cells[row][col].innerHTML = "";
+            }
+            else
             {
                 cells[row][col].innerHTML = selectedNumber;
             }
@@ -152,62 +156,45 @@
             CheckCompletion();
         }
 
-        function GetCellValue(row, col) 
+        function GetCellValue(row, col)
         {
             let text = cells[row][col].innerHTML;
             return text === "" ? 0 : parseInt(text);
         }
 
-        function HighlightSameNumbers(value) 
-        {
-            for (let row = 0; row < 9; row++) 
-            {
-                for (let col = 0; col < 9; col++) 
-                {
-                    if (GetCellValue(row, col) === value) 
-                    {
-                        sameNumberHighlights.add(row + "," + col);
-                    }
-                }
-            }
-        }
-
-        function UpdateConflicts() 
+        function UpdateConflicts()
         {
             conflictCells.clear();
 
-            for (let i = 0; i < 9; i++) 
+            for (let i = 0; i < 9; i++)
             {
                 FindLineConflicts(i, true);
                 FindLineConflicts(i, false);
             }
         }
 
-        function FindLineConflicts(index, isRow) 
+        function FindLineConflicts(index, isRow)
         {
             let positions = {};
 
-            for (let i = 0; i < 9; i++) 
+            for (let i = 0; i < 9; i++)
             {
                 let row = isRow ? index : i;
                 let col = isRow ? i : index;
                 let val = GetCellValue(row, col);
 
-                if (val > 0) 
+                if (val > 0)
                 {
                     if (!positions[val]) positions[val] = [];
                     positions[val].push(i);
                 }
             }
 
-            for (let num in positions) 
+            for (let num in positions)
             {
                 if (positions[num].length < 2) continue;
 
-                let min = Math.min(...positions[num]);
-                let max = Math.max(...positions[num]);
-
-                for (let i = min; i <= max; i++) 
+                for (let i = 0; i < 9; i++)
                 {
                     let row = isRow ? index : i;
                     let col = isRow ? i : index;
@@ -216,20 +203,20 @@
             }
         }
 
-        function ApplyVisualState() 
+        function ApplyVisualState()
         {
-            for (let row = 0; row < 9; row++) 
+            for (let row = 0; row < 9; row++)
             {
-                for (let col = 0; col < 9; col++) 
+                for (let col = 0; col < 9; col++)
                 {
                     let key = row + "," + col;
                     cells[row][col].classList.remove("cellConflict", "cellHighlight");
 
-                    if (conflictCells.has(key)) 
+                    if (conflictCells.has(key))
                     {
                         cells[row][col].classList.add("cellConflict");
-                    } 
-                    else if (sameNumberHighlights.has(key)) 
+                    }
+                    else if (selectedNumber > 0 && GetCellValue(row, col) === selectedNumber)
                     {
                         cells[row][col].classList.add("cellHighlight");
                     }
@@ -237,10 +224,11 @@
             }
         }
 
-        function CheckCompletion() {
-            for (let row = 0; row < 9; row++) 
+        function CheckCompletion()
+        {
+            for (let row = 0; row < 9; row++)
             {
-                for (let col = 0; col < 9; col++) 
+                for (let col = 0; col < 9; col++)
                 {
                     if (GetCellValue(row, col) === 0) return;
                     if (conflictCells.has(row + "," + col)) return;
@@ -252,7 +240,7 @@
             ShowCompletionScreen(elapsed);
         }
 
-        function ShowCompletionScreen(totalSeconds) 
+        function ShowCompletionScreen(totalSeconds)
         {
             let minutes = Math.floor(totalSeconds / 60).toString().padStart(2, "0");
             let seconds = (totalSeconds % 60).toString().padStart(2, "0");
@@ -260,7 +248,7 @@
             document.getElementById("completionOverlay").classList.add("visible");
         }
 
-        function StartTimer() 
+        function StartTimer()
         {
             if (timerInterval) clearInterval(timerInterval);
             startTime = Date.now();
@@ -268,7 +256,7 @@
             timerInterval = setInterval(UpdateTimerDisplay, 1000);
         }
 
-        function UpdateTimerDisplay() 
+        function UpdateTimerDisplay()
         {
             let elapsed = Math.floor((Date.now() - startTime) / 1000);
             let minutes = Math.floor(elapsed / 60).toString().padStart(2, "0");
@@ -276,62 +264,85 @@
             document.getElementById("timer").textContent = minutes + ":" + seconds;
         }
 
-        function SelectNumber(number) 
+        function SelectNumber(number)
         {
-            sameNumberHighlights.clear();
-            ApplyVisualState();
-
             let buttonId = "buttonSelection" + number;
 
-            if (selectedNumber === number) 
+            if (selectedNumber === number)
             {
                 selectedNumber = -1;
                 document.getElementById(buttonId).className = "button";
+                ApplyVisualState();
                 return;
             }
 
             selectedNumber = number;
 
-            for (let i = 1; i <= 9; i++) 
+            for (let i = 1; i <= 9; i++)
             {
                 document.getElementById("buttonSelection" + i).className = "button";
             }
 
             document.getElementById("buttonClear").className = "button buttonClear";
             document.getElementById(buttonId).className = "button buttonSelected";
+            ApplyVisualState();
         }
 
-        function SelectClear() 
+        function SelectClear()
         {
-            sameNumberHighlights.clear();
-            ApplyVisualState();
-
-            if (selectedNumber === 0) 
+            if (selectedNumber === 0)
             {
                 selectedNumber = -1;
                 document.getElementById("buttonClear").className = "button buttonClear";
+                ApplyVisualState();
                 return;
             }
 
             selectedNumber = 0;
 
-            for (let i = 1; i <= 9; i++) 
+            for (let i = 1; i <= 9; i++)
             {
                 document.getElementById("buttonSelection" + i).className = "button";
             }
 
             document.getElementById("buttonClear").className = "button buttonClearSelected";
+            ApplyVisualState();
         }
 
-        function RestartGame() 
+        function RevealHint()
+        {
+            let emptyCells = [];
+
+            for (let row = 0; row < 9; row++)
+            {
+                for (let col = 0; col < 9; col++)
+                {
+                    if (GetCellValue(row, col) === 0)
+                    {
+                        emptyCells.push([row, col]);
+                    }
+                }
+            }
+
+            if (emptyCells.length === 0) return;
+
+            let [row, col] = emptyCells[Math.floor(Math.random() * emptyCells.length)];
+            cells[row][col].innerHTML = solution[row][col];
+            cells[row][col].classList.add("cellHint");
+
+            UpdateConflicts();
+            ApplyVisualState();
+            CheckCompletion();
+        }
+
+        function RestartGame()
         {
             document.getElementById("completionOverlay").classList.remove("visible");
 
             selectedNumber = -1;
             conflictCells.clear();
-            sameNumberHighlights.clear();
 
-            for (let i = 1; i <= 9; i++) 
+            for (let i = 1; i <= 9; i++)
             {
                 document.getElementById("buttonSelection" + i).className = "button";
             }
@@ -341,10 +352,12 @@
             CreateCells();
         }
 
-        function GeneratePuzzle() 
+        function GeneratePuzzle()
         {
             let board = Array.from({ length: 9 }, () => Array(9).fill(0));
             SolveBoard(board);
+
+            solution = board.map(row => [...row]);
 
             let puzzle = board.map(row => [...row]);
 
@@ -355,15 +368,15 @@
             return puzzle;
         }
 
-        function SolveBoard(board) 
+        function SolveBoard(board)
         {
-            for (let row = 0; row < 9; row++) 
+            for (let row = 0; row < 9; row++)
             {
-                for (let col = 0; col < 9; col++) 
+                for (let col = 0; col < 9; col++)
                 {
                     if (board[row][col] !== 0) continue;
 
-                    for (let num of Shuffle([1, 2, 3, 4, 5, 6, 7, 8, 9])) 
+                    for (let num of Shuffle([1, 2, 3, 4, 5, 6, 7, 8, 9]))
                     {
                         if (!IsValidPlacement(board, row, col, num)) continue;
 
@@ -375,12 +388,13 @@
                     return false;
                 }
             }
+
             return true;
         }
 
-        function IsValidPlacement(board, row, col, num) 
+        function IsValidPlacement(board, row, col, num)
         {
-            for (let i = 0; i < 9; i++) 
+            for (let i = 0; i < 9; i++)
             {
                 if (board[row][i] === num || board[i][col] === num) return false;
             }
@@ -388,9 +402,9 @@
             let boxRow = Math.floor(row / 3) * 3;
             let boxCol = Math.floor(col / 3) * 3;
 
-            for (let r = boxRow; r < boxRow + 3; r++) 
+            for (let r = boxRow; r < boxRow + 3; r++)
             {
-                for (let c = boxCol; c < boxCol + 3; c++) 
+                for (let c = boxCol; c < boxCol + 3; c++)
                 {
                     if (board[r][c] === num) return false;
                 }
@@ -399,13 +413,14 @@
             return true;
         }
 
-        function Shuffle(array) 
+        function Shuffle(array)
         {
-            for (let i = array.length - 1; i > 0; i--) 
+            for (let i = array.length - 1; i > 0; i--)
             {
                 let j = Math.floor(Math.random() * (i + 1));
                 [array[i], array[j]] = [array[j], array[i]];
             }
+
             return array;
         }
     </script>
