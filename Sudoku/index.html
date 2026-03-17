@@ -2,13 +2,18 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Sudoku</title>
     <link rel="stylesheet" href="../styles.css">
     <style>
         :root {
             --board-size: min(60vh, 90vw);
             --cell-size: calc(var(--board-size) / 9);
+            --button-size: calc(var(--board-size) / 5);
+        }
+
+        * {
+            touch-action: manipulation;
         }
 
         body {
@@ -21,19 +26,32 @@
             height: var(--board-size);
             width: var(--board-size);
             border-radius: 5%;
-            background-color: red;
+            background-color: #b22222;
             display: grid;
             grid-template-columns: repeat(9, 1fr);
         }
 
-        .cell                { height: var(--cell-size); width: var(--cell-size); background-color: gray; font-size: calc(var(--cell-size) * 0.5); box-sizing: border-box; }
-        .cell:hover          { background-color: rgb(96, 96, 96); }
-        .cellGiven           { color: rgb(80, 140, 255); pointer-events: none; }
+        .cell {
+            height: var(--cell-size);
+            width: var(--cell-size);
+            background-color: #1a1a2e;
+            color: #e0e0e0;
+            font-size: calc(var(--cell-size) * 0.5);
+            box-sizing: border-box;
+            border: 1px solid #444;
+            border-radius: 0;
+            padding: 0;
+            line-height: var(--cell-size);
+            text-align: center;
+        }
+
+        .cell:hover          { background-color: #2a2a4e; }
+        .cellGiven           { color: #f0c040; pointer-events: none; }
         .cellHint            { color: rgb(60, 200, 60); pointer-events: none; }
-        .cellConflict        { background-color: rgb(200, 60, 60) !important; }
-        .cellHighlight       { background-color: rgb(220, 200, 50) !important; }
-        .border-right        { border-right: 3px solid black; }
-        .border-bottom       { border-bottom: 3px solid black; }
+        .cellConflict        { background-color: rgb(200, 60, 60) !important; color: white !important; }
+        .cellHighlight       { background-color: #3a3a6e !important; }
+        .border-right        { border-right: 3px solid #ccc; }
+        .border-bottom       { border-bottom: 3px solid #ccc; }
 
         #topBar {
             display: flex;
@@ -54,24 +72,30 @@
         }
 
         #numberBar {
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: center;
+            display: grid;
+            grid-template-columns: repeat(5, var(--button-size));
             width: var(--board-size);
-            gap: 0;
         }
 
         .button {
-            height: var(--cell-size);
-            width: var(--cell-size);
-            font-size: calc(var(--cell-size) * 0.5);
+            height: var(--button-size);
+            width: var(--button-size);
+            font-size: calc(var(--button-size) * 0.4);
             box-sizing: border-box;
             cursor: pointer;
+            border-radius: 0;
+            border: 1px solid #555;
+            background-color: #2a2a2a;
+            color: #e0e0e0;
+            padding: 0;
+            line-height: var(--button-size);
+            text-align: center;
         }
 
-        .buttonSelected      { background-color: rgb(33, 33, 33); color: rgb(200, 200, 200); }
-        .buttonClear         { color: rgb(200, 60, 60); }
-        .buttonClearSelected { background-color: rgb(33, 33, 33); color: rgb(200, 60, 60); }
+        .button:hover        { background-color: #3a3a3a; }
+        .buttonSelected      { background-color: #e0e0e0 !important; color: #1a1a1a !important; }
+        .buttonClear         { color: rgb(220, 80, 80); }
+        .buttonClearSelected { background-color: #e0e0e0 !important; color: rgb(200, 60, 60) !important; }
 
         #completionOverlay {
             display: none;
